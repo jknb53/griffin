@@ -111,6 +111,7 @@ Tensor softmax(const Tensor&input){
     }
     return result;
 }
+
 Tensor self_attention(const Tensor& Q, const Tensor& K, const Tensor& V){
     Tensor scores =matmul_cpu(Q,K);
     float scale_factor = sqrt(K.cols);
@@ -143,4 +144,16 @@ bool compare_tensors(const Tensor& a, const Tensor& b, float tolerance ) {
     }
     return true;
 }
+
+Tensor self_attention_cuda(const Tensor& Q, const Tensor& K,const Tensor& V){
+    Tensor scores  = matmul_cuda(Q,K);
+    float scale_factor = sqrt(K.cols);
+    for(float& value : scores.data){
+        value/= scale_factor;
+    }
+    Tensor attention_weights = softmax(scores);
+    Tensor output = matmul_cuda(attention_weights, V);
+    return output;
+}
+
 

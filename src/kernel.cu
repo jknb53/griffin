@@ -7,7 +7,7 @@
     size_t idx = blockIdx.x * blockDim.x +threadIdx.x;
 
     if(idx < n){
-        d_data[idx] += 1.0f;
+        d_data[idx] += 1.0f;//grammer sugar
     }
 
 }
@@ -59,21 +59,123 @@ Tensor matmul_cuda(const Tensor& A, const Tensor& B) {
     CUDA_CHECK(cudaMalloc(&d_a,size_a));
     CUDA_CHECK(cudaMalloc(&d_b,size_b));
     CUDA_CHECK(cudaMalloc(&d_c,size_c));
+    
     //copy
     CUDA_CHECK(cudaMemcpy(d_a,A.data.data(),size_a,cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_b,B.data.data(),size_b,cudaMemcpyHostToDevice));
+
     //config
     dim3 threadPerBlock(16,16);
     dim3 numBlock((N+threadPerBlock.x-1)/threadPerBlock.x,(M+threadPerBlock.y-1)/threadPerBlock.y);
 
     matmul_kernel<<<numBlock,threadPerBlock>>>(d_a,d_b,d_c,M,K,N);
     CUDA_CHECK(cudaGetLastError());
+
     //copy back
     CUDA_CHECK(cudaMemcpy(C.data.data(),d_c,size_c,cudaMemcpyDeviceToHost));
+
     //free 
     CUDA_CHECK(cudaFree(d_a));
     CUDA_CHECK(cudaFree(d_b));
     CUDA_CHECK(cudaFree(d_c));
 
     return C;
+}
+
+extern "C" __global__ void scale_kernel(float* data, float scale_factor , int n){
+    //1.idx
+    int idx = blockIdx.x * blockDim.x +threadIdx.x;
+    if(idx < n){
+        data[idx] /= scale_factor;
+    }
+
+}
+
+extern "C" __global__ void softmax_kernel(float* data, int rows ,int cols){
+   int row_idx = blockIdx.x;
+   int row_start = row_idx * cols;
+    if(row_idx < rows){
+        float max_val = -INFINITY;
+        if(threadIdx.x == 0){
+            for(int i = 0;i<cols;++i){
+                if(max_val <= data[row_start+i]){
+                    max_val = data[row_start+i];
+                }
+            }
+            for(int i = 0;i<cols;++i){
+                data[row_start+i] -= max_val;
+            }
+            float sum = 0.0f;
+            for(int i = 0;i<cols;++i){
+                sum += expf(data[row_start+i]);
+            }
+            for(int i = 0;i<cols;++i){
+                data[row_start+i] = expf(data[row_start+i])/sum;
+            }
+            //optimise，repeat expf many times，undone...？？？remember
+        }
+    }
+}
+
+Tensor self_attention_cuda_v2(const Tensor& Q, const Tensor& K,const Tensor& V){
+    size_t M = Q.rows;
+    size_t dim_c1 = Q.cols;
+    size_t dim_c2 = K.cols;
+    size_t N = V.cols;
+
+    Tensor S(M,dim_c2);
+    Tensor A(M,N);
+
+
+    float* d_q;
+    float* d_k;
+    float* d_v;  
+    float* d_s;
+    float* d_a;
+
+    size_t size_q = Q.data.size()*sizeof(float);
+    size_t size_k = K.data.size()*sizeof(float);
+    size_t size_v = V.data.size()*sizeof(float);
+    size_t size_s = S.data.size()*sizeof(float);
+    size_t size_a= A.data.size()*sizeof(float);
+
+    //malloc
+    CUDA_CHECK(cudaMalloc(&d_q,size_q));
+    CUDA_CHECK(cudaMalloc(&d_k,size_k));
+    CUDA_CHECK(cudaMalloc(&d_v,size_v));
+    CUDA_CHECK(cudaMalloc(&d_s,size_s));
+    CUDA_CHECK(cudaMalloc(&d_a,size_a));
+
+    //copy
+    CUDA_CHECK(cudaMemcpy(d_q,Q.data.data(),size_q,cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_k,K.data.data(),size_k,cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_v,V.data.data(),size_v,cudaMemcpyHostToDevice));
+
+    //config
+    dim3 threadPerBlock(16,16);
+    dim3 numBlock((N+threadPerBlock.x-1)/threadPerBlock.x,(M+threadPerBlock.y-1)/threadPerBlock.y);
+
+    matmul_kernel<<<numBlock,threadPerBlock>>>(d_q,d_k,d_s,M,dim_c1,dim_c2);
+    CUDA_CHECK(cudaGetLastError());   
+
+    float scale_factor = sqrt(K.cols);
+    int threadPerBlock_1D =  256;
+    int block_num_1D = (M*dim_c2+threadPerBlock_1D-1)/threadPerBlock_1D;
+    scale_kernel<<<block_num_1D,threadPerBlock_1D>>>(d_s,scale_factor,M*dim_c2);
+    int threadPerBlock_soft = 32;
+    int block_num_soft = S.rows ;
+    softmax_kernel<<<block_num_soft, threadPerBlock_soft>>>(d_s,S.rows,S.cols);
+    matmul_kernel<<<numBlock,threadPerBlock>>>(d_s,d_v,d_a,M,dim_c2,N);
+    CUDA_CHECK(cudaGetLastError());   
+
+ //copy back
+CUDA_CHECK(cudaMemcpy(A.data.data(),d_a,size_a,cudaMemcpyDeviceToHost));
+
+//malloc
+CUDA_CHECK(cudaFree(d_q));
+CUDA_CHECK(cudaFree(d_k));
+CUDA_CHECK(cudaFree(d_v));
+CUDA_CHECK(cudaFree(d_s));
+CUDA_CHECK(cudaFree(d_a));
+return A;
 }
