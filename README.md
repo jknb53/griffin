@@ -1,4 +1,3 @@
-
 ```markdown
 # 🚀 Project Griffin | Griffin 项目
 
@@ -151,11 +150,3 @@ make
 - [ ] 实现 `GELU` 激活函数的CUDA核函数。
 - [ ] 将所有算子组装成一个完整的GPT-2 Transformer模块 (Block)。
 - [ ] 最终构建出可用于推理的完整GPT-2模型。
-
-```
-
----
-**提示：**
-*   如果你想让项目更国际化，可以把中文部分单独存为一个 `README.zh-CN.md` 文件，然后在主 `README.md` 文件顶部保留 `*Read this in other languages: [English](./README.md) | [中文](./README.zh-CN.md)*` 这样的链接。
-*   如果只是为了方便自己阅读，把中英文放在同一个文件里完全没问题，就像上面这个模板一样。
-```
