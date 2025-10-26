@@ -30,8 +30,12 @@ struct Tensor {
 
 
 
+// 函数声明：我们向外界承诺，会提供这两个函数
 void print_tensor(const Tensor& t);
+// --- 新增代码 ---
+// 声明一个函数，它将作为从CPU世界调用GPU功能的“桥梁”
 void add_vectors_gpu(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c);
+// --- 结束新增 ---
 
 Tensor matmul_cpu(const Tensor& A, const Tensor& B);
 Tensor softmax(const Tensor& input);
@@ -40,12 +44,17 @@ Tensor self_attention(const Tensor& Q, const Tensor& K, const Tensor& V);
 void launch_add_one_kernel(float* d_data, int n);
 
 
+
+// --- 【抄写块 1-B】---
 Tensor matmul_cuda(const Tensor& A, const Tensor& B); // GPU版本
 bool compare_tensors(const Tensor& a, const Tensor& b, float tolerance = 1e-5f); // 裁判函数
 
+<<<<<<< HEAD
 
 Tensor self_attention(const Tensor& Q, const Tensor& K, const Tensor& V);
 
 Tensor self_attention_cuda_v2(const Tensor &Q,  const Tensor& K, const Tensor& V);
 
+=======
+>>>>>>> main
 #endif // UTILS_H

@@ -7,7 +7,7 @@
     size_t idx = blockIdx.x * blockDim.x +threadIdx.x;
 
     if(idx < n){
-        d_data[idx] += 1.0f;//grammer sugar
+        d_data[idx] += 1.0f;
     }
 
 }
@@ -59,21 +59,17 @@ Tensor matmul_cuda(const Tensor& A, const Tensor& B) {
     CUDA_CHECK(cudaMalloc(&d_a,size_a));
     CUDA_CHECK(cudaMalloc(&d_b,size_b));
     CUDA_CHECK(cudaMalloc(&d_c,size_c));
-    
     //copy
     CUDA_CHECK(cudaMemcpy(d_a,A.data.data(),size_a,cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_b,B.data.data(),size_b,cudaMemcpyHostToDevice));
-
     //config
     dim3 threadPerBlock(16,16);
     dim3 numBlock((N+threadPerBlock.x-1)/threadPerBlock.x,(M+threadPerBlock.y-1)/threadPerBlock.y);
 
     matmul_kernel<<<numBlock,threadPerBlock>>>(d_a,d_b,d_c,M,K,N);
     CUDA_CHECK(cudaGetLastError());
-
     //copy back
     CUDA_CHECK(cudaMemcpy(C.data.data(),d_c,size_c,cudaMemcpyDeviceToHost));
-
     //free 
     CUDA_CHECK(cudaFree(d_a));
     CUDA_CHECK(cudaFree(d_b));
