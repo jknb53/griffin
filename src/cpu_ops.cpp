@@ -1,17 +1,7 @@
-#include "utils.h" // 包含我们自己的头文件
+#include "utils.h"
 #include <cmath>
 #include <limits>
-#include <cuda_runtime.h>
-#include <stdexcept>
 
-
-// 在.cpp文件中，我们需要再次声明核函数，以便C++编译器知道它的存在
-// extern "C" 是为了防止C++的命名修饰(name mangling)
-// extern "C" __global__ void add_kernel(const float* d_a, const float* d_b, float* d_c, int n);
-
-
-
-// prsize_t_tensor 函数的具体实现
 void print_tensor(const Tensor& t) {
     // 假设是二维张量来打印
     size_t rows = t.rows;
@@ -23,39 +13,6 @@ void print_tensor(const Tensor& t) {
         std::cout << std::endl;
     }
 }
-
-// matmul_cpu 函数的具体实现
-// !!! 注意：这里是空的，这正是你需要完成的部分 !!!
-// Tensor matmul_cpu(const Tensor& A, const Tensor& B) {
-//    //basic def
-//     size_t a_height = A.rows;
-//     size_t a_width = A.cols;
-//     std::vector<float> a_mat = A.data;
-
-//     size_t b_height =  B.rows;
-//     size_t b_width = B.cols;
-//     std::vector<float> b_mat = B.data;
-
-//     Tensor C (a_height,b_width);
-//     // C.shape = {a_height,b_width};   wrong,modified
-//     //attention!!! we did not creat before
-//     // C.rows = a_height;
-//     // C.cols = b_width;
-//     C.data.resize(C.rows*C.cols,0.0f);
-
-
-// for(size_t i = 0;i < a_height ; ++i){
-//     for(size_t j = 0;j < b_width ; ++j){
-//         for(size_t k = 0;k < a_width ; ++k ){
-//             C.data[i*C.cols + j] += a_mat[i*a_width + k] * b_mat[k*b_width + j];
-//         }
-//     }
-// }
-//     // 这是一个临时的、错误的实现，以便项目能编译通过
-//     // 你需要把它替换成你真正的代码
-//     // std::cout << "[ERROR] matmul_cpu function is not implemented yet!" << std::endl;
-//     return C; // 返回一个空的Tensor
-// }
 
 
 Tensor matmul_cpu(const Tensor& A, const Tensor& B){
@@ -111,6 +68,8 @@ Tensor softmax(const Tensor&input){
     }
     return result;
 }
+
+
 Tensor self_attention(const Tensor& Q, const Tensor& K, const Tensor& V){
     Tensor scores =matmul_cpu(Q,K);
     float scale_factor = sqrt(K.cols);
