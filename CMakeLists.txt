@@ -10,7 +10,7 @@
  # 它由哪些源文件构成
  add_executable(griffin
      src/main.cpp
-     src/utils.cpp
+     src/cpu_ops.cpp
      src/kernel.cu
  )
 

@@ -2,7 +2,7 @@
 #include "utils.h"
 
 
- extern "C" __global__ void add_one_kernel(float* d_data, int n){
+ __global__ void add_one_kernel(float* d_data, int n){
 
     size_t idx = blockIdx.x * blockDim.x +threadIdx.x;
 
@@ -19,8 +19,8 @@ void launch_add_one_kernel(float* d_data, int n) {
     CUDA_CHECK(cudaGetLastError());
 }
 
-
-extern "C" __global__ void matmul_kernel(const float* d_A, const float* d_B, float* d_C, int M, int K, int N){
+//---------------------------------------------------------------------------------------
+ __global__ void matmul_kernel(const float* d_A, const float* d_B, float* d_C, int M, int K, int N){
     //thread also idex
     size_t rows = blockIdx.y * blockDim.y +threadIdx.y;
     size_t cols = blockIdx.x * blockDim.x +threadIdx.x;
@@ -81,8 +81,10 @@ Tensor matmul_cuda(const Tensor& A, const Tensor& B) {
 
     return C;
 }
+//---------------------------------------------------------------------------------------
 
-extern "C" __global__ void scale_kernel(float* data, float scale_factor , int n){
+//---------------------------------------------------------------------------------------
+__global__ void scale_kernel(float* data, float scale_factor , int n){
     //1.idx
     int idx = blockIdx.x * blockDim.x +threadIdx.x;
     if(idx < n){
@@ -117,7 +119,18 @@ extern "C" __global__ void softmax_kernel(float* data, int rows ,int cols){
     }
 }
 
+
+
 Tensor self_attention_cuda_v2(const Tensor& Q, const Tensor& K,const Tensor& V){
+    //---input validation ---
+    if(Q.cols!=K.rows){
+        throw std::invalid_argument("Dimension dismatch inself-attention :Q.cols must be equal to K.rows");
+    }
+        if(K.cols!=V.rows){
+        throw std::invalid_argument("Dimension dismatch inself-attention :K.cols must be equal to V.rows");
+    }
+
+
     size_t M = Q.rows;
     size_t dim_c1 = Q.cols;
     size_t dim_c2 = K.cols;
@@ -178,4 +191,15 @@ CUDA_CHECK(cudaFree(d_v));
 CUDA_CHECK(cudaFree(d_s));
 CUDA_CHECK(cudaFree(d_a));
 return A;
+}
+
+Tensor self_attention_cuda(const Tensor& Q, const Tensor& K,const Tensor& V){
+    Tensor scores  = matmul_cuda(Q,K);
+    float scale_factor = sqrt(K.cols);
+    for(float& value : scores.data){
+        value/= scale_factor;
+    }
+    Tensor attention_weights = softmax(scores);
+    Tensor output = matmul_cuda(attention_weights, V);
+    return output;
 }

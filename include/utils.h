@@ -44,7 +44,7 @@ Tensor matmul_cuda(const Tensor& A, const Tensor& B); // GPU版本
 bool compare_tensors(const Tensor& a, const Tensor& b, float tolerance = 1e-5f); // 裁判函数
 
 
-Tensor self_attention_cuda(const Tensor& Q, const Tensor& K, const Tensor& V);
+Tensor self_attention(const Tensor& Q, const Tensor& K, const Tensor& V);
 
 Tensor self_attention_cuda_v2(const Tensor &Q,  const Tensor& K, const Tensor& V);
 
