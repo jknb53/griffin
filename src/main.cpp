@@ -5,16 +5,20 @@
 int main() {
     try {
         // 1. 准备比赛数据
-        Tensor A(2, 2);
-        A.data = {1, 2, 3, 4};
-        Tensor B(2, 2);
-        B.data = {5, 6, 7, 8};
+        Tensor input(2, 4);
+        input.data = {1, 2, 3, 3, 1, 5, 2, 8};
+
+        Tensor gamma(1,4);
+        gamma.data = {1,2,3,4};
+
+        Tensor beta(1,4);
+        beta.data = {1,2,3,4};
 
         // 2. CPU选手上场
-        Tensor C_cpu = matmul_cpu(A, B);
+        Tensor C_cpu = layernorm_cpu(input,gamma,beta);
 
-        // 3. GPU选手上场
-        Tensor C_cuda = matmul_cuda(A, B);
+        // // 3. GPU选手上场
+        Tensor C_cuda = layernorm_cuda(input,gamma,beta);
 
         // 4. 打印双方结果
         std::cout << "--- CPU 运行结果 ---" << std::endl;
