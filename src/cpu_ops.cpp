@@ -103,3 +103,33 @@ bool compare_tensors(const Tensor& a, const Tensor& b, float tolerance ) {
     return true;
 }
 
+Tensor layernorm_cpu(const Tensor &input , const Tensor &gamma, const Tensor &beta){
+    Tensor output = input;
+    std::vector<float> mean(output.rows) ,var(output.rows);
+    float esp = 1e-5f;
+    //1.mean 
+    for(int i =0; i<output.rows;++i){
+        float sum =0;//attention must float
+        for(int j =0; j<output.cols;++j){
+                    sum+=output.data[i*output.cols+j];
+        }
+        mean[i] = sum/output.cols;
+    }
+    //2.var**2
+    for(int i =0; i<output.rows;++i){
+        float sum_diff =0;
+  
+        for(int j =0; j<output.cols;++j){
+                    sum_diff+=pow((output.data[i*output.cols+j]-mean[i]),2);
+        }
+        var[i] =sum_diff/output.cols;
+    
+    }  
+    //3.norm and multiply gamma and beta
+    for(int i =0; i<output.rows;++i){
+        for(int j =0; j<output.cols;++j){
+            output.data[i*output.cols+j]= gamma.data[j]*(output.data[i*output.cols+j]-mean[i])/sqrt(var[i]+esp)+beta.data[j];
+        }
+    }
+    return output;
+}

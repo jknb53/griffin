@@ -89,7 +89,7 @@ __global__ void scale_kernel(float* data, float scale_factor , int n){
 
 }
 
-extern "C" __global__ void softmax_kernel(float* data, int rows ,int cols){
+ __global__ void softmax_kernel(float* data, int rows ,int cols){
    int row_idx = blockIdx.x;
    int row_start = row_idx * cols;
     if(row_idx < rows){
@@ -199,3 +199,60 @@ Tensor self_attention_cuda(const Tensor& Q, const Tensor& K,const Tensor& V){
     Tensor output = matmul_cuda(attention_weights, V);
     return output;
 }
+
+
+//--------------------layernorm-kernel-------------------------
+__global__ void layernorm_kernel(float* data,int rows,int cols,const float *gamma,const float *beta){
+    int idx_start =blockIdx.x*cols;
+    int idx = threadIdx.x;
+    if(blockIdx.x<rows){
+        if(idx==0){
+        float mean ,var;
+        float esp = 1e-5f;
+        //1.mean 
+            float sum =0;//attention must float
+            for(int j =0; j<cols;++j){
+                        sum+=data[idx_start+j];
+            }
+            mean = sum/cols;
+        //2.var**2
+            float sum_diff =0;
+            for(int j =0; j<cols;++j){
+                        sum_diff+=pow((data[idx_start+j]-mean),2);
+            }
+            var =sum_diff/cols;
+        
+        //3.norm and multiply gamma and beta
+            for(int j =0; j<cols;++j){
+                data[idx_start+j]= gamma[j]*(data[idx_start+j]-mean)/sqrt(var+esp)+beta[j];
+            }
+        }
+}
+}
+//layernorm-wrapper
+Tensor layernorm_cuda(const Tensor &input , const Tensor &gamma, const Tensor &beta){
+    Tensor output = input;
+    float* d_o,*d_g,*d_b;
+    size_t size_o = output.data.size()*sizeof(float);
+    size_t size_g = gamma.data.size()*sizeof(float);
+    size_t size_b = beta.data.size()*sizeof(float);
+
+    //malloc
+    cudaMalloc(&d_o,size_o);
+    cudaMalloc(&d_g,size_g);
+    cudaMalloc(&d_b,size_b);
+    cudaMemcpy(d_o,output.data.data(),size_o,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_g,gamma.data.data(),size_g,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b,beta.data.data(),size_b,cudaMemcpyHostToDevice);
+
+    int threadPerBlock = 32;
+    layernorm_kernel<<<output.rows,threadPerBlock>>>(d_o,output.rows,output.cols,d_g,d_b);
+    cudaMemcpy(output.data.data(),d_o,size_o,cudaMemcpyDeviceToHost);
+    cudaFree(d_o);
+    cudaFree(d_g);
+    cudaFree(d_b);
+    return output;
+}
+//-------------------------end----------------------------
+
+
