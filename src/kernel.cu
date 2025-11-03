@@ -229,6 +229,66 @@ __global__ void layernorm_kernel(float* data,int rows,int cols,const float *gamm
         }
 }
 }
+
+//------------------------version2222222222222222222-----------------
+__global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *gamma,const float *beta){
+    unsigned int tid_start = cols*blockIdx.x;
+    unsigned int tid = threadIdx.x;
+    int threadPerBlock =256;
+    //shared
+    __shared__  float s_sum1[256];//mean
+    __shared__  float s_sum2[256];//[rows/4];//var
+    float sum_mean=0.0f;
+    float sum_var=0.0f;
+    float eps =1e-5;
+    //---------------------mean-----------------------
+    float mean = 0.0f;
+    //preprocess
+    for(int i = tid; i<cols;i+=threadPerBlock){
+        sum_mean+=data[i+tid_start];
+       }
+       s_sum1[tid] = sum_mean;
+        __syncthreads();
+    //    if(blockIdx.x==0){
+    //     printf("thread : %d  ,num : %f\n",tid,s_sum1[tid]);
+    //    }
+
+    //parallel reduction
+    for(int stride = threadPerBlock>>1;stride !=0;stride/=2){
+        if(tid<stride){
+        s_sum1[tid]+=s_sum1[tid+stride];
+        }
+        __syncthreads();//666,dead lock all tid ready in one block,so don't put in if
+    }
+    // printf("%f\n",s_sum1[0]);
+    
+     //get the final result : s_sum1[0]
+    mean = s_sum1[0]/cols;
+    //--------------------end mean--------------
+    //-------------------------var------------------------
+    float var =0.0f;
+     //preprocess
+    for(int i = tid; i<cols;i+=threadPerBlock){
+        sum_var+=pow(data[i+tid_start],2);
+       }
+       s_sum2[tid] = sum_var;
+       __syncthreads();
+    //parallel reduction
+    for(int stride = threadPerBlock>>1;stride !=0;stride/=2){
+        if(tid<stride){
+        s_sum2[tid]+=s_sum2[tid+stride];
+        }
+        __syncthreads();
+    }
+     //get the final result : s_sum1[0]
+    var = s_sum2[0]/cols-pow(mean,2);
+    //--------------------end var--------------
+    //last transform variable
+    for(int i = tid;i<cols;i+=threadPerBlock){
+        data[tid_start +i]=gamma[i]*(data[tid_start +i]-mean)/sqrt((var+eps))+beta[i];
+    }
+}
+
 //layernorm-wrapper
 Tensor layernorm_cuda(const Tensor &input , const Tensor &gamma, const Tensor &beta){
     Tensor output = input;
@@ -246,7 +306,7 @@ Tensor layernorm_cuda(const Tensor &input , const Tensor &gamma, const Tensor &b
     cudaMemcpy(d_b,beta.data.data(),size_b,cudaMemcpyHostToDevice);
 
     int threadPerBlock = 32;
-    layernorm_kernel<<<output.rows,threadPerBlock>>>(d_o,output.rows,output.cols,d_g,d_b);
+    layernorm_kernel_v2<<<output.rows,threadPerBlock>>>(d_o,output.rows,output.cols,d_g,d_b);
     cudaMemcpy(output.data.data(),d_o,size_o,cudaMemcpyDeviceToHost);
     cudaFree(d_o);
     cudaFree(d_g);
