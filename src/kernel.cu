@@ -234,7 +234,8 @@ __global__ void layernorm_kernel(float* data,int rows,int cols,const float *gamm
 __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *gamma,const float *beta){
     unsigned int tid_start = cols*blockIdx.x;
     unsigned int tid = threadIdx.x;
-    int threadPerBlock =256;
+    // int threadPerBlock =256;
+
     //shared
     __shared__  float s_sum1[256];//mean
     __shared__  float s_sum2[256];//[rows/4];//var
@@ -244,7 +245,7 @@ __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *g
     //---------------------mean-----------------------
     float mean = 0.0f;
     //preprocess
-    for(int i = tid; i<cols;i+=threadPerBlock){
+    for(int i = tid; i<cols;i+=blockDim.x){
         sum_mean+=data[i+tid_start];
        }
        s_sum1[tid] = sum_mean;
@@ -254,7 +255,7 @@ __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *g
     //    }
 
     //parallel reduction
-    for(int stride = threadPerBlock>>1;stride !=0;stride/=2){
+    for(int stride = blockDim.x>>1;stride !=0;stride/=2){
         if(tid<stride){
         s_sum1[tid]+=s_sum1[tid+stride];
         }
@@ -268,13 +269,13 @@ __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *g
     //-------------------------var------------------------
     float var =0.0f;
      //preprocess
-    for(int i = tid; i<cols;i+=threadPerBlock){
+    for(int i = tid; i<cols;i+=blockDim.x){
         sum_var+=pow(data[i+tid_start],2);
        }
        s_sum2[tid] = sum_var;
        __syncthreads();
     //parallel reduction
-    for(int stride = threadPerBlock>>1;stride !=0;stride/=2){
+    for(int stride = blockDim.x>>1;stride !=0;stride/=2){
         if(tid<stride){
         s_sum2[tid]+=s_sum2[tid+stride];
         }
@@ -284,7 +285,7 @@ __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *g
     var = s_sum2[0]/cols-pow(mean,2);
     //--------------------end var--------------
     //last transform variable
-    for(int i = tid;i<cols;i+=threadPerBlock){
+    for(int i = tid;i<cols;i+=blockDim.x){
         data[tid_start +i]=gamma[i]*(data[tid_start +i]-mean)/sqrt((var+eps))+beta[i];
     }
 }
