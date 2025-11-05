@@ -38,7 +38,6 @@ void launch_add_one_kernel(float* d_data, int n) {
 
 
 Tensor matmul_cuda(const Tensor& A, const Tensor& B) {
-    // 【做】的部分：你的所有核心逻辑将在这里展开
     //init
     size_t M =A.rows;
     size_t K = A.cols;
@@ -315,5 +314,34 @@ Tensor layernorm_cuda(const Tensor &input , const Tensor &gamma, const Tensor &b
     return output;
 }
 //-------------------------end----------------------------
+//------------------------gelllllu-kernel-----------------------
+__global__ void gelu_kernel(float* data ,int rows,int cols){
+        int  tid =  threadIdx.x;
+        int  tid_start = blockDim.x*blockIdx.x;
+        if(tid_start + tid  <  cols*rows) {
+            data[tid_start + tid] = 0.5*data[tid_start + tid]*(1+tanhf(sqrtf(2/M_PI)*(data[tid_start + tid]+data[tid_start + tid]*data[tid_start + tid]*data[tid_start + tid]*0.044715)));
+        }
+}
+
+
+Tensor gelu_cuda(const Tensor &input ){
+    float* d_i;
+    size_t size_i = input.data.size()*sizeof(float);
+    Tensor output = input;
+    //malloc
+    cudaMalloc(&d_i,size_i);
+    //sit down
+    cudaMemcpy(d_i,input.data.data(),size_i,cudaMemcpyHostToDevice);
+    //deal with
+    size_t threadPerBlock_1D=  16;
+    size_t  numBlock =(threadPerBlock_1D-1+input.cols*input.rows)/threadPerBlock_1D;
+    gelu_kernel<<<numBlock,threadPerBlock_1D>>>(d_i,input.rows,input.cols);
+    //copy back 
+    cudaMemcpy(output.data.data(),d_i,size_i,cudaMemcpyDeviceToHost);
+    //free
+    cudaFree(d_i);
+
+return output;
+}
 
 

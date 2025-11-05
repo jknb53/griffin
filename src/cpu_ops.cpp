@@ -133,3 +133,14 @@ Tensor layernorm_cpu(const Tensor &input , const Tensor &gamma, const Tensor &be
     }
     return output;
 }
+
+    Tensor gelu_cpu(const Tensor & input){
+        Tensor copy = input;
+
+        size_t rows =copy.rows;
+        size_t cols =copy.cols;
+        for(int i = 0;i<rows*cols;++i){
+            copy.data[i]=0.5*copy.data[i]*(1+std::tanh(sqrt(2/M_PI)*(copy.data[i]+copy.data[i]*copy.data[i]*copy.data[i]*0.044715)));
+        }
+        return copy;
+}

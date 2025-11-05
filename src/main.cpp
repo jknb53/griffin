@@ -8,17 +8,11 @@ int main() {
         Tensor input(2, 4);
         input.data = {1, 2, 3, 3, 1, 5, 2, 8};
 
-        Tensor gamma(1,4);
-        gamma.data = {1,2,3,4};
-
-        Tensor beta(1,4);
-        beta.data = {1,2,3,4};
-
         // 2. CPU选手上场
-        Tensor C_cpu = layernorm_cpu(input,gamma,beta);
+        Tensor C_cpu = gelu_cpu(input);
 
         // // 3. GPU选手上场
-        Tensor C_cuda = layernorm_cuda(input,gamma,beta);
+        Tensor C_cuda = gelu_cuda(input);
 
         // 4. 打印双方结果
         std::cout << "--- CPU 运行结果 ---" << std::endl;

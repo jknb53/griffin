@@ -57,4 +57,6 @@ Tensor self_attention_cuda_v2(const Tensor &Q,  const Tensor& K, const Tensor& V
 Tensor layernorm_cpu(const Tensor &input , const Tensor &gamma, const Tensor &beta);
 Tensor layernorm_cuda(const Tensor &input , const Tensor &gamma, const Tensor &beta);
 
+Tensor gelu_cpu(const Tensor &input );
+Tensor gelu_cuda(const Tensor &input );
 #endif // UTILS_H
