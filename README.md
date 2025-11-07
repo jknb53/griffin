@@ -144,9 +144,9 @@ make
 
 #### 🗺️ 未来路线图 (下一步计划)
 
-- [ ] 实现 `LayerNorm` 的CUDA核函数。
+- [X] 实现 `LayerNorm` 的CUDA核函数。
 - [ ] 使用并行规约 (Parallel Reduction) 算法优化 `softmax_kernel`。
 - [ ] 使用共享内存 (Shared Memory) 优化 `matmul_kernel`。
-- [ ] 实现 `GELU` 激活函数的CUDA核函数。
+- [X] 实现 `GELU` 激活函数的CUDA核函数。
 - [ ] 将所有算子组装成一个完整的GPT-2 Transformer模块 (Block)。
 - [ ] 最终构建出可用于推理的完整GPT-2模型。

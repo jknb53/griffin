@@ -12,7 +12,6 @@
 
 }
 
-// 定义一个普通的 C++ 函数作为桥梁
 void launch_add_one_kernel(float* d_data, int n) {
     // 在 .cu 文件里，nvcc 编译器认识这个语法
     add_one_kernel<<<1, n>>>(d_data, n);
@@ -344,4 +343,156 @@ Tensor gelu_cuda(const Tensor &input ){
 return output;
 }
 
+//-------------------------------add_bias-kernel--------------------------------------------
+__global__ void add_bias_kernel(float* data,float* bias ,int rows,int cols){
+    int tid = threadIdx.x;
+    int tid_start = cols*blockIdx.x;
 
+    if(tid + tid_start < rows*cols){
+        for(int i =tid;i<cols;i+=blockDim.x){
+            data[tid_start + i] += bias[i];
+        }
+    }
+
+}
+
+Tensor add_bias_cuda(const Tensor & hidden,const Tensor & bias){
+    //copy
+    Tensor h_cy =hidden;
+    Tensor b_cy = bias;
+
+    //find a place
+    float* d_h;
+    float* d_b;
+
+    size_t size_h = hidden.data.size()*sizeof(float);
+    size_t size_b = bias.data.size()*sizeof(float);
+
+    //find a chair
+    cudaMalloc(&d_h,size_h);
+    cudaMalloc(&d_b,size_b);
+
+    //sit down
+    cudaMemcpy(d_h,hidden.data.data(),size_h,cudaMemcpyDeviceToHost);
+    cudaMemcpy(d_b,bias.data.data(),size_b,cudaMemcpyDeviceToHost);
+
+    //start now
+    int threadPerBlock_1D = 256;
+    int numBlock = hidden.rows;
+    add_bias_kernel<<<numBlock,threadPerBlock_1D>>>(h_cy.data.data(),b_cy.data.data(),hidden.rows,hidden.cols);
+
+    // some words go into your mind
+    cudaMemcpy(h_cy.data.data(),d_h,size_h,cudaMemcpyDeviceToHost);
+
+    //go away ,byebye
+    cudaFree(d_h);
+    cudaFree(d_b);
+    
+return h_cy;
+
+}
+
+
+Tensor ffn_cuda(const Tensor & input,const Tensor & w1,const Tensor & b1,const Tensor & w2,const Tensor & b2){
+    //define all variable
+    //-------------input--------------
+    float* d_i;
+    float* d_w1;
+    float* d_b1;
+    float* d_w2;
+    float*d_b2;
+
+    size_t size_i = input.data.size()*sizeof(float);
+    size_t size_w1 = w1.data.size()*sizeof(float);
+    size_t size_b1 = b1.data.size()*sizeof(float);
+    size_t size_w2 = w2.data.size()*sizeof(float);
+    size_t size_b2 = b2.data.size()*sizeof(float);
+
+    //see the chair 1
+    cudaMalloc(&d_i,size_i);
+    cudaMalloc(&d_w1,size_w1);
+    cudaMalloc(&d_b1,size_b1);
+    cudaMalloc(&d_w2,size_w2);
+    cudaMalloc(&d_b2,size_b2);
+
+    //--------------mid-------------
+    float* d_h1;
+    // float* d_h2;
+    // float* d_h3;
+    float* d_o1;
+    // float* d_o2;
+
+    size_t size_h1 = input.rows*w1.cols*sizeof(float);
+    // size_t size_h2 = input.rows*w1.cols*sizeof(float);
+    // size_t size_h3 = input.rows*w1.cols*sizeof(float);
+    size_t size_o1 = input.rows*w2.cols*sizeof(float);
+    // size_t size_o2 = input.rows*w2.cols*sizeof(float);
+    
+    //see  the chair2
+    cudaMalloc(&d_h1,size_h1);
+    // cudaMalloc(&d_h2,size_h2);
+    // cudaMalloc(&d_h3,size_h3);
+    cudaMalloc(&d_o1,size_o1);
+    // cudaMalloc(&d_o2,size_o2);
+
+    //sit down
+    cudaMemcpy(d_i,input.data.data(),size_i,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_w1,w1.data.data(),size_w1,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b1,b1.data.data(),size_b1,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_w2,w2.data.data(),size_w2,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b2,b2.data.data(),size_b2,cudaMemcpyHostToDevice);
+
+    //----------------------------start now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ------------------------------------------------------------------------------------------------------fuck
+    //1.matmul 1
+    int M1 = input.rows;
+    int K1 = input.cols;
+    int N1 = w1.cols;
+
+    dim3 threadPerBlock(16,16);
+    dim3 numBlock1((N1+threadPerBlock.x-1)/threadPerBlock.x,(M1+threadPerBlock.y-1)/threadPerBlock.y);
+    matmul_kernel<<<numBlock1,threadPerBlock>>>(d_i,d_w1,d_h1,M1,K1,N1);
+
+    //2.bias 1
+    int threadPerBlock_1D = 256;
+    int numBlock_b1 = input.rows;
+    add_bias_kernel<<<numBlock_b1,threadPerBlock_1D>>>(d_h1,d_b1,input.rows,w1.cols);
+
+
+    //3.gelu
+    int  numBlock_gelu =(threadPerBlock_1D-1+w1.cols*input.rows)/threadPerBlock_1D;
+    gelu_kernel<<<numBlock_gelu,threadPerBlock_1D>>>(d_h1,input.rows,w1.cols);
+
+    //4.matmul 2
+    int M2 = input.rows;
+    int K2 = w1.cols;
+    int N2 = w2.cols;
+
+    dim3 numBlock2((N2+threadPerBlock.x-1)/threadPerBlock.x,(M2+threadPerBlock.y-1)/threadPerBlock.y);
+    matmul_kernel<<<numBlock2,threadPerBlock>>>(d_h1,d_w2,d_o1,M2,K2,N2);
+
+    //5.bias 2
+    add_bias_kernel<<<numBlock_b1,threadPerBlock_1D>>>(d_o1,d_b2,input.rows,w2.cols);
+
+    //copy back
+    Tensor output(input.rows,w2.cols);
+    cudaMemcpy(output.data.data(),d_o1,size_o1,cudaMemcpyDeviceToHost);
+    cudaFree(d_i);
+    cudaFree(d_w1);
+    cudaFree(d_b1);
+    cudaFree(d_h1);
+    cudaFree(d_w2);
+    cudaFree(d_b2);
+    cudaFree(d_o1);
+
+
+    return output;
+}
+// Tensor ffn_cpu(const Tensor & input,const Tensor & w1,const Tensor & b1,const Tensor & w2,const Tensor  & b2){
+//     Tensor hidden1 = matmul_cpu(input,w1);
+//     Tensor hidden2 = add_bias_cpu(hidden1,b1);
+//     Tensor hidden3 = gelu_cpu(hidden2);
+//     Tensor output1 = matmul_cpu(hidden3,w2);
+//     Tensor output2 = add_bias_cpu(output1,b2);
+
+//     return output2;
+// }
