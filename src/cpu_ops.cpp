@@ -133,3 +133,43 @@ Tensor layernorm_cpu(const Tensor &input , const Tensor &gamma, const Tensor &be
     }
     return output;
 }
+
+    Tensor gelu_cpu(const Tensor & input){
+        Tensor copy = input;
+
+        size_t rows =copy.rows;
+        size_t cols =copy.cols;
+        for(int i = 0;i<rows*cols;++i){
+            copy.data[i]=0.5*copy.data[i]*(1+std::tanh(sqrt(2/M_PI)*(copy.data[i]+copy.data[i]*copy.data[i]*copy.data[i]*0.044715)));
+        }
+        return copy;
+}
+
+//--------------------------------ffn---------------------------
+Tensor add_bias_cpu(const Tensor & hidden,const Tensor & bias){
+    Tensor output =hidden;//every time i copy a copy??? 
+    //other situation ,to be done......
+    // if(hidden.cols!=bias.cols){
+        
+    // }
+    //right side dimension is same
+    if(hidden.cols==bias.cols){
+        for(int i =0;i<hidden.rows;++i){
+            for(int j =0;j<hidden.cols;++j){
+                output.data[i*hidden.cols+j] += bias.data[j];
+            }
+        }
+    }
+    return output;
+}
+
+
+Tensor ffn_cpu(const Tensor & input,const Tensor & w1,const Tensor & b1,const Tensor & w2,const Tensor  & b2){
+    Tensor hidden1 = matmul_cpu(input,w1);
+    Tensor hidden2 = add_bias_cpu(hidden1,b1);
+    Tensor hidden3 = gelu_cpu(hidden2);
+    Tensor output1 = matmul_cpu(hidden3,w2);
+    Tensor output2 = add_bias_cpu(output1,b2);
+
+    return output2;
+}
