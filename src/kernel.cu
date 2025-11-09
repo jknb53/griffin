@@ -235,8 +235,8 @@ __global__ void layernorm_kernel_v2(float* data,int rows,int cols,const float *g
     // int threadPerBlock =256;
 
     //shared
-    __shared__  float s_sum1[256];//mean
-    __shared__  float s_sum2[256];//[rows/4];//var
+    __shared__  float s_sum1[256] = 0.0f;//mean
+    __shared__  float s_sum2[256] = 0.0f;//[rows/4];//var
     float sum_mean=0.0f;
     float sum_var=0.0f;
     float eps =1e-5;

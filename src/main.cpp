@@ -34,19 +34,19 @@ int main() {
         Tensor C_cuda = ffn_cuda(input,w1,b1,w2, b2);
 
         // 4. 打印双方结果
-        std::cout << "--- CPU 运行结果 ---" << std::endl;
+        std::cout << "--- CPU result ---" << std::endl;
         print_tensor(C_cpu);
-        std::cout << "\n--- CUDA 运行结果 ---" << std::endl;
+        std::cout << "\n--- CUDA result ---" << std::endl;
         print_tensor(C_cuda);
 
         // 5. 裁判宣布比赛结果
         if (compare_tensors(C_cpu, C_cuda)) {
-            std::cout << "\n[SUCCESS] CPU 和 CUDA 计算结果一致！" << std::endl;
+            std::cout << "\n[SUCCESS] The calculation results of the CPU and CUDA are not consistent!" << std::endl;
         } else {
-            std::cout << "\n[FAILURE] CPU 和 CUDA 计算结果不匹配！" << std::endl;
+            std::cout << "\n[FAILURE] The calculation results of the CPU and CUDA are not consistent!" << std::endl;
         }
     } catch (const std::exception& e) {
-        std::cerr << "程序发生错误: " << e.what() << std::endl;
+        std::cerr << "An error occurred in the program.: " << e.what() << std::endl;
         return -1;
     }
     return 0;

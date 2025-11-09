@@ -21,16 +21,16 @@
      ${CMAKE_CURRENT_SOURCE_DIR}/include
  )
 
- # 【关键修复】告诉 griffin 去哪里寻找CUDA的官方头文件 (cuda_runtime.h)
+ # 告诉 griffin 去哪里寻找CUDA的官方头文件 (cuda_runtime.h)
  # 我们使用 find_package 创建的 CUDA_INCLUDE_DIRS 变量
  target_include_directories(griffin PUBLIC
      ${CUDA_INCLUDE_DIRS}
  )
 
- # 【关键修复】告诉 griffin 它需要链接哪些CUDA的官方库文件
+ # 告诉 griffin 它需要链接哪些CUDA的官方库文件
  # 我们使用 find_package 创建的 CUDA_LIBRARIES 变量
  target_link_libraries(griffin PUBLIC
      ${CUDA_LIBRARIES}
  )
- # --- 【替换结束】 ---
+
  
